@@ -103,8 +103,20 @@ provides only Ultralytics' cloud features, which this project never calls.
 python main.py
 ```
 
-The live window opens; the sorting loop runs at camera frame rate. For history,
-trends and the daily record, in a second terminal:
+The live window opens; the sorting loop runs at camera frame rate.
+
+There is also a **hosted-demo entry point** that needs no camera — upload a
+photo and watch every agent's output, including the ones that say "I cannot
+tell":
+
+```bash
+streamlit run streamlit_app.py
+```
+
+That is what deploys; see `DEPLOY.md`. The live loop cannot be hosted, because
+a cloud machine has no webcam and no desktop window.
+
+For history, trends and the daily record, in a second terminal:
 
 ```bash
 streamlit run dashboard/app.py
