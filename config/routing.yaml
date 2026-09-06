@@ -1,0 +1,120 @@
+# =============================================================================
+#  DOWNSTREAM MUNICIPAL ROUTES
+# =============================================================================
+#  What happens to a waste stream after it leaves the sorting line.
+#
+#  THIS FILE IS GENERIC ON PURPOSE.
+#
+#  Every `facility`, `contact` and `licence` field below is null. That is not
+#  an oversight and it is not a placeholder to be filled with a plausible
+#  guess. Naming a real recycler, transfer station or treatment plant that has
+#  not agreed to accept a given stream would be inventing a fact about a third
+#  party -- and a report that says "batteries go to <named company>" is worse
+#  than one that says "batteries go to an authorised e-waste recycler", because
+#  the first can be acted on and be wrong.
+#
+#  The stage names below are ordinary waste-management terms, not claims about
+#  any particular organisation. Fill in the null fields with your own
+#  municipality's verified data and the routing agent will report it.
+# =============================================================================
+
+routes:
+
+  RECYCLABLE:
+    stream: "Dry waste"
+    stages:
+      - "Segregated dry collection"
+      - "Material recovery"
+      - "Authorised recycling"
+    facility: null            # e.g. the MRF your ward actually delivers to
+    contact: null
+    licence: null
+    notes: ""
+
+  GLASS:
+    stream: "Dry waste"
+    stages:
+      - "Segregated dry collection"
+      - "Material recovery — glass separation"
+      - "Authorised glass recycling"
+    facility: null
+    contact: null
+    licence: null
+    notes: "Ceramic is a contaminant in this stream, which is why an ambiguous
+            plastic/glass/ceramic object is sent to manual inspection rather
+            than sorted."
+
+  METAL:
+    stream: "Dry waste"
+    stages:
+      - "Segregated dry collection"
+      - "Material recovery — ferrous / non-ferrous separation"
+      - "Authorised metal recycling"
+    facility: null
+    contact: null
+    licence: null
+    notes: ""
+
+  PAPER:
+    stream: "Dry waste"
+    stages:
+      - "Segregated dry collection"
+      - "Material recovery — fibre grading"
+      - "Authorised paper recycling"
+    facility: null
+    contact: null
+    licence: null
+    notes: ""
+
+  ORGANIC:
+    stream: "Wet waste"
+    stages:
+      - "Segregated wet collection"
+      - "Composting or biomethanation"
+    facility: null
+    contact: null
+    licence: null
+    notes: ""
+
+  E_WASTE:
+    stream: "E-waste"
+    stages:
+      - "Separate collection"
+      - "Authorised e-waste recycler"
+    facility: null
+    contact: null
+    licence: null
+    notes: "Kept out of both the dry and wet streams regardless of what the
+            device is made of."
+
+  HAZARDOUS:
+    stream: "Domestic hazardous waste"
+    stages:
+      - "Separate hazardous collection"
+      - "Authorised treatment, storage and disposal"
+    facility: null
+    contact: null
+    licence: null
+    notes: "Sharps are handled here on the basis of injury risk, not material."
+
+  REJECT:
+    stream: "Residual waste"
+    stages:
+      - "Residual collection"
+      - "Processing or engineered landfill"
+    facility: null
+    contact: null
+    licence: null
+    notes: "The stream to minimise. A rising share here is worth investigating
+            rather than accommodating."
+
+  MANUAL_CHECK:
+    stream: "Held for inspection"
+    stages:
+      - "Manual inspection station"
+      - "Re-entry to the appropriate stream once identified"
+    facility: null
+    contact: null
+    licence: null
+    notes: "Not a disposal route. Nothing leaves the site as MANUAL_CHECK --
+            an item here is waiting for a person to assign it a real stream."

@@ -1,0 +1,53 @@
+# =============================================================================
+#  YOLO DATASET DEFINITION  --  template, fill in your paths
+# =============================================================================
+#  The class names below MUST match keys in config/labels_waste.yaml. Run
+#
+#      python -m training.train --check
+#
+#  to verify that before starting a run; a class the label map has never heard
+#  of trains perfectly well and then reports UNKNOWN for every instance at run
+#  time, which shows up only as an unexplained rise in manual inspections.
+#
+#  Expected layout (standard Ultralytics):
+#
+#      training/data/
+#        images/train/*.jpg      labels/train/*.txt
+#        images/val/*.jpg        labels/val/*.txt
+#
+#  Each label file holds one line per object:
+#      <class_index> <x_centre> <y_centre> <width> <height>
+#  all normalised to 0-1.
+# =============================================================================
+
+path: training/data
+train: images/train
+val: images/val
+
+names:
+  0: battery
+  1: aluminium_can
+  2: cardboard
+  3: plastic_bag
+  4: pet_bottle
+  5: glass_bottle
+  6: paper
+  7: food_waste
+  8: mobile_phone
+  9: plastic_container
+
+# ---------------------------------------------------------------------------
+#  Start with ten classes, not twenty-two.
+#
+#  config/labels_waste.yaml describes the full target vocabulary, but a first
+#  model should cover the classes that matter most and that you can actually
+#  gather a few hundred examples of each. The four at the top are the ones
+#  COCO cannot see at all, and `battery` is the single most consequential:
+#  a lithium cell in the dry recyclable stream is a fire in a collection
+#  vehicle.
+#
+#  Classes with too few examples do not fail loudly. They produce a model
+#  that is confidently wrong about them, which this architecture is
+#  specifically built to avoid -- so leave a class out rather than include it
+#  with thirty images.
+# ---------------------------------------------------------------------------

@@ -1,0 +1,31 @@
+# Phase 1 -- software simulation. Nothing here is hardware-specific.
+ultralytics>=8.3          # YOLO detection and tracking
+opencv-python>=4.10       # camera capture and the live control-room window
+numpy>=1.26
+PyYAML>=6.0               # config/config.yaml
+streamlit>=1.30           # the reporting view (dashboard/app.py)
+
+# --- one deliberate exception -------------------------------------------
+# ultralytics declares `ultralytics-platform` as a hard dependency, and that
+# package pins httpx>=0.28. It provides Ultralytics' CLOUD features only --
+# it is imported lazily, and only when you touch Platform / AsyncPlatform /
+# APIError / APIConnectionError. This project never does: local inference
+# uses `from ultralytics import YOLO` and nothing else.
+#
+# It is left uninstalled here because httpx>=0.28 conflicts with an unrelated
+# supabase install in the same interpreter. `pip check` will therefore report:
+#
+#     ultralytics 8.4.140 requires ultralytics-platform, which is not installed
+#
+# That warning is expected and harmless. Note that `pip install -U ultralytics`
+# will pull it back in and upgrade httpx again. If that matters, put this
+# project in its own virtual environment instead.
+#
+# ultralytics-platform     # intentionally NOT installed -- see above
+
+# Pulled in by ultralytics; a CPU-only laptop is fine:
+#   torch, torchvision
+# sqlite3 is part of the standard library.
+
+# Stage 4 (analytics) will add:
+# pandas>=2.0

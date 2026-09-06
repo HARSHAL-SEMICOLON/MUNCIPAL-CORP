@@ -1,0 +1,100 @@
+# =============================================================================
+#  LABEL -> MATERIAL MAP  --  custom waste model (Stage 5 target)
+# =============================================================================
+#  THIS MAP DESCRIBES A MODEL THAT DOES NOT EXIST YET.
+#
+#  It is the specification for the custom detector, written before training so
+#  that the class list is chosen by what the municipality needs to separate
+#  rather than by whatever a dataset happens to contain. Train a model whose
+#  class names match the keys below, drop it in `models/`, and point
+#  config.yaml at it:
+#
+#      detection:
+#        model_path: "models/waste-v1.pt"
+#        label_map:  "config/labels_waste.yaml"
+#
+#  Nothing above the detector changes. Not one line of agent code.
+#
+#  The four classes marked NEW are the ones COCO cannot see at all, and they
+#  are the entire reason Stage 5 exists: a battery in the recycling stream is
+#  the single most consequential sorting error this system can make.
+# =============================================================================
+
+certain:
+  # --- the four COCO cannot reach ------------------------------------------
+  battery:            CHEMICAL          # NEW -- the reason for this stage
+  aluminium_can:      ALUMINIUM         # NEW
+  cardboard:          CARDBOARD         # NEW
+  plastic_bag:        MIXED_PLASTIC     # NEW
+
+  # --- plastics -------------------------------------------------------------
+  pet_bottle:         PET_PLASTIC       # distinguishable once trained for it
+  plastic_container:  MIXED_PLASTIC
+  plastic_cup:        MIXED_PLASTIC
+  plastic_wrapper:    MIXED_PLASTIC
+
+  # --- glass ----------------------------------------------------------------
+  glass_bottle:       GLASS
+  glass_jar:          GLASS
+
+  # --- metal ----------------------------------------------------------------
+  metal_can:          FERROUS_METAL
+  metal_scrap:        FERROUS_METAL
+
+  # --- fibre ----------------------------------------------------------------
+  paper:              PAPER
+  newspaper:          PAPER
+  carton:             CARDBOARD
+
+  # --- organics -------------------------------------------------------------
+  food_waste:         ORGANIC
+  fruit_peel:         ORGANIC
+
+  # --- e-waste --------------------------------------------------------------
+  mobile_phone:       ELECTRONIC
+  circuit_board:      ELECTRONIC
+  cable:              ELECTRONIC
+
+  # --- residual -------------------------------------------------------------
+  textile:            TEXTILE
+
+ambiguous:
+  # Even a purpose-trained model has honest ambiguities. A closed opaque
+  # container tells a camera nothing about what is inside it, and a
+  # food-contaminated one belongs in a different stream from a clean one.
+  container:
+    candidates: [MIXED_PLASTIC, GLASS, CERAMIC]
+    reason: "a closed container does not reveal its material from the outside"
+
+# Objects whose handling is decided by risk or by contamination rather than by
+# what they are made of. A blade is ordinary steel; a used tissue is ordinary
+# paper. Neither belongs in the stream its material would suggest.
+object_overrides:
+  syringe:       HAZARDOUS
+  broken_glass:  HAZARDOUS
+  blade:         HAZARDOUS
+  tissue:        REJECT
+
+# ---------------------------------------------------------------------------
+#  Notes for whoever trains this
+# ---------------------------------------------------------------------------
+#  * Keep `battery` a single class. Sub-typing it (AA, lithium, button) needs
+#    far more labelled examples than a college project will gather, and every
+#    sub-type routes to the same hazardous stream anyway. Separating classes
+#    that share a destination buys nothing and costs accuracy.
+#
+#  * `pet_bottle` and `glass_bottle` are separate classes here, which is the
+#    single biggest gain over COCO: it collapses the system's most common
+#    ambiguity. Only split them if the training images actually let a model
+#    tell them apart -- if they do not, keep one `bottle` class and leave it
+#    in `ambiguous`, which the architecture already handles correctly.
+#
+#  * Every class here must be one a camera can plausibly distinguish. A class
+#    the model cannot learn produces confident wrong answers, which is worse
+#    than the honest UNKNOWN the current system gives.
+#
+#  * `tissue` is an object override rather than a material, because its
+#    material (paper) would route it to fibre recovery and a used tissue does
+#    not belong there. Judging whether a given piece of paper is soiled is
+#    contamination work -- Stage 2 -- and needs a sensor ordinary RGB cannot
+#    replace. Treating the whole class as residual is the honest interim.

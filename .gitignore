@@ -1,0 +1,19 @@
+__pycache__/
+*.py[cod]
+logs/*.log
+logs/*.jsonl
+logs/*.png
+data/*.db
+data/*.db-wal
+data/*.db-shm
+.venv/
+venv/
+
+# training
+training/runs/
+training/data/
+models/*.pt
+
+# evaluation
+evaluation/dataset/
+evaluation/results/

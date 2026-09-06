@@ -1,0 +1,79 @@
+# =============================================================================
+#  LABEL -> MATERIAL MAP  --  COCO-pretrained yolov8n.pt
+# =============================================================================
+#  What the detector's class names mean in material terms.
+#
+#  This lives in config rather than in agent code so that swapping the
+#  detection model is two lines in config.yaml (`model_path` + `label_map`)
+#  rather than an edit to the Material Agent. The agents do not know which
+#  model produced a label.
+#
+#  `certain`   -- the class name implies exactly one material.
+#  `ambiguous` -- the class name genuinely covers several. List them all and
+#                 say why. The Material Agent will report UNKNOWN with the
+#                 candidates attached; the Classification Agent then decides
+#                 whether the ambiguity actually changes where the item goes.
+#
+#  Anything not listed here returns UNKNOWN with no candidates, and the item
+#  goes to manual inspection. That is the correct behaviour: 49 of COCO's 80
+#  classes are not waste at all, and a sofa on a conveyor belt should puzzle
+#  the system rather than be confidently mis-sorted.
+# =============================================================================
+
+certain:
+  # organics
+  banana:      ORGANIC
+  apple:       ORGANIC
+  orange:      ORGANIC
+  broccoli:    ORGANIC
+  carrot:      ORGANIC
+  sandwich:    ORGANIC
+  pizza:       ORGANIC
+  donut:       ORGANIC
+  cake:        ORGANIC
+  hot dog:     ORGANIC
+
+  # electronics -- e-waste regardless of what the casing is made of
+  cell phone:  ELECTRONIC
+  laptop:      ELECTRONIC
+  keyboard:    ELECTRONIC
+  mouse:       ELECTRONIC
+  remote:      ELECTRONIC
+  tv:          ELECTRONIC
+  microwave:   ELECTRONIC
+  toaster:     ELECTRONIC
+  hair drier:  ELECTRONIC
+  clock:       ELECTRONIC
+
+  # glass
+  wine glass:  GLASS
+  vase:        GLASS
+
+  # fibre
+  book:        PAPER
+
+  # metal
+  knife:       FERROUS_METAL
+  scissors:    FERROUS_METAL
+  fork:        FERROUS_METAL
+  spoon:       FERROUS_METAL
+
+  # plastic
+  toothbrush:  MIXED_PLASTIC
+
+ambiguous:
+  bottle:
+    candidates: [PET_PLASTIC, GLASS]
+    reason: "the detector class 'bottle' covers both PET and glass"
+  cup:
+    candidates: [MIXED_PLASTIC, PAPER, CERAMIC]
+    reason: "the detector class 'cup' covers plastic, paper and ceramic"
+  bowl:
+    candidates: [MIXED_PLASTIC, GLASS, CERAMIC]
+    reason: "the detector class 'bowl' covers plastic, glass and ceramic"
+
+# Objects whose handling is decided by risk rather than by material. A blade
+# is ordinary steel; sharps are still a hazardous municipal stream.
+object_overrides:
+  knife:     HAZARDOUS
+  scissors:  HAZARDOUS

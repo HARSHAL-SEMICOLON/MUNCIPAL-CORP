@@ -1,0 +1,161 @@
+# =============================================================================
+#  Smart Municipal Waste Segregation System  --  Phase 1 (software simulation)
+# =============================================================================
+#  Every operational number the agents rely on lives here. Nothing in agents/
+#  should hard-code a threshold, a capacity or a destination.
+# =============================================================================
+
+system:
+  name: "Smart Municipal Waste Segregation System"
+  phase: 1
+
+camera:
+  # 0 / 1 / 2 = webcam index.  A string = path to a video file.
+  source: 0
+  width: 960
+  height: 540
+  loop_video: true          # only meaningful when source is a file
+
+detection:
+  # THE PERCEPTION SEAM. These two lines together are the whole of a model
+  # swap: point at new weights and at the label map that says what its class
+  # names mean. No agent code changes. See config/labels_waste.yaml for the
+  # Stage 5 target model, which can see batteries, cans, cardboard and bags --
+  # four things COCO cannot.
+  model_path: "models/yolov8n.pt"
+  label_map: "config/labels_coco.yaml"
+  imgsz: 640
+  device: "cpu"
+  # Raw YOLO output below this is discarded before any agent sees it.
+  min_confidence: 0.35
+  tracker: "bytetrack.yaml"
+
+# ---------------------------------------------------------------------------
+#  THE DECISION LINE
+#  Detection runs every frame. The agent pipeline runs ONCE per tracked object,
+#  when its centre crosses this fraction of the frame width. Without this, one
+#  bottle sitting in view for two seconds would produce ~60 sorting decisions
+#  and, in Phase 2, ~60 servo commands.
+# ---------------------------------------------------------------------------
+decision_line:
+  position: 0.55
+  min_frames_before_commit: 5   # object must be tracked this long to count
+  forget_after_frames: 90       # drop track bookkeeping once it disappears
+
+# ---------------------------------------------------------------------------
+#  CONFIDENCE BANDS
+#  Operational thresholds chosen for demonstration. These are NOT validated
+#  accuracy figures and must not be presented as such.
+# ---------------------------------------------------------------------------
+confidence:
+  auto_sort: 0.85       # >= auto_sort          -> sort automatically
+  verify: 0.60          # verify .. auto_sort   -> cautious sort, flagged
+                        # <  verify             -> manual inspection
+
+safety:
+  # Two boxes overlapping by more than this are treated as one unresolved
+  # scene rather than two confident detections: an occluded object is the
+  # classic way a sorter puts the wrong thing in the wrong bin.
+  overlap_iou: 0.35
+  # Streams a human must be involved in, whatever the confidence.
+  always_review: ["HAZARDOUS"]
+  # A person or animal in the sorting zone stops the belt, and the restart is
+  # manual. A real line uses a light curtain for this; the camera is already
+  # looking at the same space, so the interlock costs nothing to add.
+  intrusion_classes: ["person", "cat", "dog"]
+
+bins:
+  RECYCLING:    { capacity: 100, warn_at: 0.80 }
+  ORGANIC:      { capacity: 100, warn_at: 0.80 }
+  E_WASTE:      { capacity: 50,  warn_at: 0.75 }
+  HAZARDOUS:    { capacity: 50,  warn_at: 0.60 }
+  REJECT:       { capacity: 100, warn_at: 0.85 }
+  MANUAL_CHECK: { capacity: 30,  warn_at: 0.70 }
+
+# ---------------------------------------------------------------------------
+#  THE HARDWARE SEAM
+#  "simulation" -> SimulationController  (Phase 1, this build)
+#  "hardware"   -> HardwareController    (Phase 2, ESP32/Arduino)
+#  Changing this one word is the entire Phase 1 -> Phase 2 migration for the
+#  action layer. No agent above this line changes.
+# ---------------------------------------------------------------------------
+action:
+  controller: simulation
+  max_retries: 2
+  timeout_ms: 4000
+  # NOTE for Phase 2: this timeout must exceed the diverter's travel time or
+  # every command times out. Measure the mechanism, then set it to roughly
+  # three times the worst travel.
+  # Raise above 0.0 to inject synthetic actuator failures and exercise the
+  # retry-then-hold path. The simulation can never fail on its own, so this
+  # is the only way to test the failure branch before hardware exists.
+  simulated_failure_rate: 0.0
+
+conveyor:
+  travel_ms: 2600           # time an item takes to reach its bin
+  running_on_start: true
+
+# ---------------------------------------------------------------------------
+#  PHASE 2 -- only read when action.controller is "hardware".
+#  Ignored entirely in Phase 1, so it is safe to leave configured.
+# ---------------------------------------------------------------------------
+hardware:
+  port: null                # "COM5" on Windows, "/dev/ttyUSB0" on Linux
+  baud: 115200
+
+  # Diverter servo angle per destination. These are the numbers you measure
+  # on the bench, and they are config rather than code for exactly that
+  # reason -- nobody should edit Python to re-aim a servo after the bracket
+  # shifts. A destination missing from this map is REFUSED rather than
+  # guessed: sorting to an unknown angle puts the item somewhere nobody
+  # planned for.
+  bin_angles:
+    RECYCLING:     30
+    ORGANIC:       60
+    E_WASTE:       90
+    HAZARDOUS:    120
+    REJECT:       150
+    MANUAL_CHECK: 180
+
+routing:
+  # Downstream municipal routes live in their own file so a municipality can
+  # edit them without touching operational thresholds.
+  file: "config/routing.yaml"
+
+analytics:
+  # Sample-size guards. Below these counts the Analytics Agent reports that it
+  # does not have enough data, rather than describing noise as a finding.
+  # A "trend" drawn from four items is not a trend.
+  min_items_for_insight: 20
+  min_items_per_period: 15
+  # A stream is only called the largest if it actually dominates.
+  dominant_share: 0.35
+  # Relative change needed before a period-over-period move is called a rise
+  # or a fall.
+  trend_change: 0.20
+  # Manual-inspection rate that is worth flagging.
+  manual_rate_concern: 0.25
+
+planning:
+  # Sustained bin fill that warrants a capacity review.
+  capacity_pressure: 0.75
+  # The Planning Agent recommends and never acts. This is a reporting knob
+  # only: how many recommendations to surface at once.
+  max_recommendations: 6
+
+database:
+  enabled: true
+  path: "data/waste.db"
+  # Bin levels are sampled on a timer rather than written on every change.
+  # A snapshot every few seconds is plenty to chart fill across a shift, and
+  # it keeps the sorting loop from doing a disk write per item.
+  bin_sample_seconds: 10
+
+monitoring:
+  # How often the Monitoring Agent publishes a SYSTEM_UPDATE heartbeat.
+  heartbeat_seconds: 10
+
+logging:
+  level: "INFO"
+  file: "logs/system.log"
+  json_events: "logs/events.jsonl"
