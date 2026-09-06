@@ -82,6 +82,17 @@ around it.
 pip install -r requirements.txt
 ```
 
+The detection weights are not in the repository — binaries do not belong in
+git — so fetch them once:
+
+```bash
+python -c "from ultralytics import YOLO; YOLO('yolov8n.pt')"
+```
+
+then move the downloaded `yolov8n.pt` into `models/`. Everything else runs
+from the clone. The test suites need no model at all: the detector is
+injectable, so `python -m tests.test_pipeline` works immediately.
+
 One deliberate exception is documented at the top of `requirements.txt`:
 `ultralytics-platform` is left uninstalled, because it pins `httpx>=0.28` and
 provides only Ultralytics' cloud features, which this project never calls.
