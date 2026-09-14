@@ -1,14 +1,8 @@
----
-title: Agentic Waste Segregation
-emoji: ♻️
-colorFrom: green
-colorTo: blue
-sdk: streamlit
-app_file: streamlit_app.py
-pinned: false
----
-
 # Smart Municipal Waste Segregation System
+
+**Live demo:** https://harshalmunicipalcorp.streamlit.app/ — upload a photo, watch
+all ten agents decide (the app sleeps after inactivity; give it ~30–60s to wake
+on a cold visit).
 
 An agentic AI system for municipal waste sorting. A camera watches a conveyor;
 a chain of agents works out what each object is, what it is made of, which
