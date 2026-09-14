@@ -17,3 +17,7 @@ models/*.pt
 # evaluation
 evaluation/dataset/
 evaluation/results/
+
+# fonts -- licensed per use, so the file stays local; see static/fonts/README.md
+static/fonts/*
+!static/fonts/README.md

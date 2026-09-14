@@ -1,0 +1,16 @@
+# Normalize line endings so a Windows checkout doesn't turn every file into
+# a full-file diff against what was committed from Linux/Mac (or vice versa).
+* text=auto
+
+*.py text eol=lf
+*.md text eol=lf
+*.yaml text eol=lf
+*.yml text eol=lf
+*.toml text eol=lf
+*.txt text eol=lf
+
+*.pt binary
+*.db binary
+*.png binary
+*.jpg binary
+*.jpeg binary

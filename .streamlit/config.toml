@@ -1,0 +1,40 @@
+# Streamlit's own theme, so the widgets it draws for us -- buttons, the file
+# uploader, dataframes, the running-man spinner -- land on the same palette as
+# the CSS in ui/theme.py rather than fighting it.
+#
+# The split is deliberate. Colour and shape live here, because Streamlit's
+# native theming reaches inside components that CSS cannot touch (the
+# dataframe grid is a canvas, not a DOM tree). Type lives in ui/theme.py,
+# because the display face is loaded from a file that may or may not be
+# present and that decision needs Python.
+#
+# Values here mirror ui/theme.py. tests/test_theme.py fails if they drift.
+
+[theme]
+base = "light"
+baseRadius = "medium"
+showWidgetBorder = true
+metricValueFontWeight = 600
+# Any chart that does not name its own colour. The reporting view names its
+# own everywhere, on purpose -- one hue for data, six fixed hexes for bins.
+chartCategoricalColors = ["#3B7280", "#CE7671", "#4A8996", "#E9A49E", "#2A3752", "#BAD3CB"]
+
+[theme.light]
+primaryColor = "#3B7280"
+backgroundColor = "#FBF8F7"
+secondaryBackgroundColor = "#EFF4F2"
+textColor = "#2A3752"
+linkColor = "#3B7280"
+borderColor = "#DDE6E2"
+dataframeBorderColor = "#DDE6E2"
+dataframeHeaderBackgroundColor = "#EFF4F2"
+
+[theme.dark]
+primaryColor = "#7FB8C4"
+backgroundColor = "#171E2B"
+secondaryBackgroundColor = "#222C41"
+textColor = "#F3EFED"
+linkColor = "#7FB8C4"
+borderColor = "#333E56"
+dataframeBorderColor = "#333E56"
+dataframeHeaderBackgroundColor = "#222C41"

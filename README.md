@@ -1,3 +1,13 @@
+---
+title: Agentic Waste Segregation
+emoji: ♻️
+colorFrom: green
+colorTo: blue
+sdk: streamlit
+app_file: streamlit_app.py
+pinned: false
+---
+
 # Smart Municipal Waste Segregation System
 
 An agentic AI system for municipal waste sorting. A camera watches a conveyor;
@@ -54,9 +64,18 @@ python -m tests.test_hardware
 python -m tests.test_evaluation
 ```
 
-172 checks between them, no camera or model required — the detector and the
+```bash
+python -m tests.test_theme
+```
+
+253 checks between them, no camera or model required — the detector and the
 database are both injectable, so the whole agent loop is testable headless in
 under a second and no test touches `data/waste.db`.
+
+The last of those is the odd one out. It recomputes every contrast ratio in
+the dashboards' palette against the ground it is actually painted on, because
+a colour that is too pale does not throw — it just sits there being hard to
+read until somebody squints at it on a projector.
 
 Those checks prove the system is **correct**. Whether it **works** is a
 different question, and it has its own answer:

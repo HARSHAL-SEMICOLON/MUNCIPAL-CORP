@@ -37,35 +37,24 @@ import streamlit as st
 
 from core.config import Config
 from core.event_bus import EventBus
-from core.messages import Destination
 from database.database import Database
+from ui import theme
 
 st.set_page_config(page_title="Municipal Waste — Reporting",
                    page_icon="♻️", layout="wide")
 
-# --- palette ---------------------------------------------------------------
-# Validated with the data-viz palette checker against both surfaces. One hue
-# carries every data mark; the status four are fixed and never themed.
-
-LIGHT = {
-    "hue": "#2a78d6", "ink": "#0b0b0b", "muted": "#52514e",
-    "grid": "#e6e5e1", "surface": "#fcfcfb",
-}
-DARK = {
-    "hue": "#3987e5", "ink": "#ffffff", "muted": "#c3c2b7",
-    "grid": "#302f2d", "surface": "#1a1a19",
-}
-STATUS = {"good": "#0ca30c", "warning": "#fab219",
-          "serious": "#ec835a", "critical": "#d03b3b"}
+# --- the look --------------------------------------------------------------
+# Palette and display face from ui/theme.py, shared with the agent demo. One
+# hue carries every data mark; the status four are retuned for contrast but
+# still semantic, and never travel without an icon and a word beside them.
+T, STATUS = theme.apply()
 
 # The streams in a fixed order, so a reader finds the same row every visit and
-# a filter can never repaint the survivors. These hexes match the bins in the
-# live window and stand in for the physical bin colours.
-STREAM_ORDER = ["RECYCLING", "ORGANIC", "E_WASTE", "HAZARDOUS", "REJECT", "MANUAL_CHECK"]
-STREAM_COLOUR = {
-    "RECYCLING": "#2a78d6", "ORGANIC": "#008300", "E_WASTE": "#4a3aa7",
-    "HAZARDOUS": "#e34948", "REJECT": "#8a8880", "MANUAL_CHECK": "#eda100",
-}
+# a filter can never repaint the survivors. The hues stand in for the physical
+# bin colours, which is why the summer palette leaves them alone. They are not
+# the same hexes the live OpenCV window uses -- ui/theme.py has the detail.
+STREAM_ORDER = theme.STREAM_ORDER
+STREAM_COLOUR = theme.streams()
 CATEGORY_ORDER = ["RECYCLABLE", "ORGANIC", "GLASS", "METAL", "PAPER",
                   "E_WASTE", "HAZARDOUS", "REJECT", "MANUAL_CHECK"]
 
@@ -79,22 +68,6 @@ RULE_NAMES = {
     "R7_APPROVED": "R7  approved to sort",
 }
 
-
-def theme() -> dict:
-    try:
-        if st.context.theme.type == "dark":
-            return DARK
-    except Exception:
-        pass
-    try:
-        if str(st.get_option("theme.base")).lower() == "dark":
-            return DARK
-    except Exception:
-        pass
-    return LIGHT
-
-
-T = theme()
 
 
 # --- data ------------------------------------------------------------------
@@ -145,11 +118,7 @@ def axis(title: str | None = None, grid: bool = False, fmt: str | None = None,
     return spec
 
 
-BASE_CONFIG = {
-    "background": "transparent",
-    "view": {"stroke": None},
-    "font": "-apple-system, Segoe UI, Roboto, sans-serif",
-}
+BASE_CONFIG = theme.chart_config(T)
 
 
 def bar_chart(rows: list[dict], label_field: str, value_field: str,
@@ -205,16 +174,12 @@ def render(spec: dict) -> None:
     st.vega_lite_chart(spec, use_container_width=True)
 
 
-def chip(colour: str, label: str) -> str:
-    return (f"<span style='display:inline-block;width:10px;height:10px;"
-            f"border-radius:2px;background:{colour};margin-right:7px;"
-            f"vertical-align:middle'></span><span style='vertical-align:middle'>"
-            f"{label}</span>")
+chip = theme.chip
 
 
 # --- page ------------------------------------------------------------------
 
-st.title("Municipal Waste — Reporting")
+theme.hero("Reporting", "Municipal waste segregation")
 
 path = db_path()
 summary = fetch("""SELECT COUNT(*) AS processed,
@@ -299,11 +264,12 @@ with insight_col:
         provisional = ("<span style='color:%s;font-size:11px'> · provisional</span>"
                        % T["muted"]) if item.strength != "supported" else ""
         st.markdown(
-            f"<div style='padding:9px 0;border-bottom:1px solid {T['grid']}'>"
-            f"<span style='color:{colour}'>{icon} {item.kind}</span>{provisional}<br>"
-            f"<span style='font-size:14px;font-weight:600'>{item.headline}</span><br>"
-            f"<span style='color:{T['muted']};font-size:13px'>{item.detail}</span>"
-            f"</div>", unsafe_allow_html=True)
+            "<div class='pmc-row'>"
+            f"<span class='pmc-tag' style='color:{colour}'>{icon} {item.kind}"
+            f"</span>{provisional}<br>"
+            f"<span class='pmc-row-head'>{item.headline}</span><br>"
+            f"<span class='pmc-row-body'>{item.detail}</span>"
+            "</div>", unsafe_allow_html=True)
         with st.expander("Evidence"):
             st.json(item.evidence, expanded=True)
             st.caption(f"period: {item.period}")
@@ -316,12 +282,12 @@ with advice_col:
         colour = {"HIGH": STATUS["critical"], "MEDIUM": STATUS["warning"],
                   "LOW": T["muted"]}.get(rec.priority, T["muted"])
         st.markdown(
-            f"<div style='padding:9px 0;border-bottom:1px solid {T['grid']}'>"
-            f"<span style='color:{colour};font-size:12px'>{rec.priority}</span> "
-            f"<span style='color:{T['muted']};font-size:12px'>· {rec.owner}</span><br>"
-            f"<span style='font-size:14px;font-weight:600'>{rec.headline}</span><br>"
-            f"<span style='color:{T['muted']};font-size:13px'>{rec.consider}</span>"
-            f"</div>", unsafe_allow_html=True)
+            "<div class='pmc-row'>"
+            f"<span class='pmc-tag' style='color:{colour}'>{rec.priority}</span> "
+            f"<span class='pmc-tag'>· {rec.owner}</span><br>"
+            f"<span class='pmc-row-head'>{rec.headline}</span><br>"
+            f"<span class='pmc-row-body'>{rec.consider}</span>"
+            "</div>", unsafe_allow_html=True)
     if not recommendations:
         st.caption("Nothing to recommend yet.")
 
@@ -451,7 +417,7 @@ else:
                       else STATUS["warning"] if state != "FULL" else STATUS["critical"])
             st.markdown(
                 f"<span style='color:{colour}'>{icon}</span> "
-                f"<span style='color:{T['muted']};font-size:12px'>"
+                f"<span class='pmc-row-body'>"
                 f"{row['current_level'] if row else 0}/{row['capacity'] if row else 0}"
                 f" · {state}</span>",
                 unsafe_allow_html=True)
@@ -644,9 +610,8 @@ for r in alerts:
     }.get(r["severity"], ("●", T["muted"]))
     times = f" · ×{r['times']}" if r["times"] > 1 else ""
     st.markdown(
-        f"<div style='padding:7px 0;border-bottom:1px solid {T['grid']}'>"
-        f"<span style='color:{colour}'>{icon} {r['severity']}</span> "
-        f"<span style='color:{T['muted']};font-size:12px'>"
-        f"{r['last_seen'][11:19]} · {r['agent']}{times}</span><br>"
-        f"<span style='font-size:13px'>{r['message'] or r['event']}</span></div>",
+        "<div class='pmc-row'>"
+        f"<span class='pmc-tag' style='color:{colour}'>{icon} {r['severity']}</span> "
+        f"<span class='pmc-tag'>{r['last_seen'][11:19]} · {r['agent']}{times}</span><br>"
+        f"<span class='pmc-row-body'>{r['message'] or r['event']}</span></div>",
         unsafe_allow_html=True)

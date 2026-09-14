@@ -30,22 +30,19 @@ import logging
 import numpy as np
 import streamlit as st
 
+from ui import theme
+
 st.set_page_config(page_title="Waste Segregation — Agent Demo",
                    page_icon="♻️", layout="wide")
 
 logging.disable(logging.INFO)
 
-# --- palette (matches the reporting view) ---------------------------------
-LIGHT = {"hue": "#2a78d6", "ink": "#0b0b0b", "muted": "#52514e",
-         "grid": "#e6e5e1", "card": "#f6f6f4"}
-DARK = {"hue": "#3987e5", "ink": "#ffffff", "muted": "#c3c2b7",
-        "grid": "#302f2d", "card": "#1e211f"}
-STATUS = {"good": "#0ca30c", "warning": "#fab219",
-          "serious": "#ec835a", "critical": "#d03b3b"}
-STREAM_COLOUR = {
-    "RECYCLING": "#2a78d6", "ORGANIC": "#008300", "E_WASTE": "#4a3aa7",
-    "HAZARDOUS": "#e34948", "REJECT": "#8a8880", "MANUAL_CHECK": "#eda100",
-}
+# --- the look --------------------------------------------------------------
+# Palette, display face and the shared bits of markup all come from ui/theme.py
+# so that this page and the reporting view cannot drift into two versions of
+# the same design. Must run after set_page_config and before anything draws.
+T, STATUS = theme.apply()
+STREAM_COLOUR = theme.streams()
 
 RULE_PLAIN = {
     "R1_CONTROLLER_UNAVAILABLE": "the actuator was unavailable",
@@ -57,17 +54,6 @@ RULE_PLAIN = {
     "R7_APPROVED": "nothing objected, so it was sorted",
 }
 
-
-def theme() -> dict:
-    try:
-        if st.context.theme.type == "dark":
-            return DARK
-    except Exception:
-        pass
-    return LIGHT
-
-
-T = theme()
 
 
 # --- the real system, loaded once -----------------------------------------
@@ -144,12 +130,20 @@ def decide(system, image_bgr):
 
 
 def annotate(image_bgr, detections, chosen):
+    """The photograph with the detector's boxes drawn on.
+
+    Box colours come out of the palette rather than being written here as
+    literals, so the box around the object is the same teal as the rule under
+    the heading next to it.
+    """
     import cv2
+    chosen_colour = theme.bgr(T["hue"])
+    other_colour = theme.bgr(T["muted"])
     view = image_bgr.copy()
     for d in detections:
         x1, y1, x2, y2 = d.bbox
         main = d is chosen
-        colour = (214, 120, 42) if main else (150, 150, 150)
+        colour = chosen_colour if main else other_colour
         cv2.rectangle(view, (x1, y1), (x2, y2), colour, 3 if main else 1)
         tag = f"{d.label} {d.confidence:.0%}"
         cv2.putText(view, tag, (x1, max(18, y1 - 8)),
@@ -159,21 +153,20 @@ def annotate(image_bgr, detections, chosen):
 
 def step(n: int, agent: str, question: str, answer: str, detail: str = "",
          colour: str | None = None) -> None:
+    """One rung of the chain: who was asked, what they were asked, what they said."""
     colour = colour or T["ink"]
     st.markdown(
-        f"<div style='padding:11px 0;border-bottom:1px solid {T['grid']}'>"
-        f"<span style='font-family:monospace;font-size:11px;color:{T['muted']}'>"
-        f"{n} · {agent.upper()}</span><br>"
-        f"<span style='font-size:12.5px;color:{T['muted']}'>{question}</span><br>"
-        f"<span style='font-size:17px;font-weight:600;color:{colour}'>{answer}</span>"
-        + (f"<br><span style='font-size:13px;color:{T['muted']}'>{detail}</span>"
-           if detail else "")
+        "<div class='pmc-step'>"
+        f"<span class='pmc-tag'>{n} · {agent}</span><br>"
+        f"<span class='pmc-q'>{question}</span><br>"
+        f"<span class='pmc-a' style='color:{colour}'>{answer}</span>"
+        + (f"<br><span class='pmc-d'>{detail}</span>" if detail else "")
         + "</div>", unsafe_allow_html=True)
 
 
 # --- page ------------------------------------------------------------------
 
-st.title("Waste Segregation — Agent Demo")
+theme.hero("Agent demo", "Municipal waste segregation")
 st.markdown(
     "A camera watches a conveyor and ten agents decide what each object is, "
     "which waste stream it belongs to, whether it is **safe to act on that "
@@ -281,13 +274,11 @@ with right:
          colour=STATUS["good"] if approved else STATUS["serious"])
 
     st.markdown(
-        f"<div style='margin-top:18px;padding:16px 18px;background:{T['card']};"
-        f"border-left:4px solid {colour}'>"
-        f"<span style='font-family:monospace;font-size:11px;color:{T['muted']};"
-        f"letter-spacing:.12em'>OUTCOME</span><br>"
-        f"<span style='font-size:24px;font-weight:700;color:{colour}'>"
+        f"<div class='pmc-outcome' style='border-left-color:{colour}'>"
+        "<span class='pmc-tag'>Outcome</span><br>"
+        f"<span class='pmc-outcome-word' style='color:{colour}'>"
         f"{dest.replace('_', ' ')}</span><br>"
-        f"<span style='font-size:13.5px;color:{T['muted']}'>{verdict.reason}</span>"
+        f"<span class='pmc-d'>{verdict.reason}</span>"
         "</div>", unsafe_allow_html=True)
 
     route = result["route"]

@@ -1,29 +1,41 @@
 # Phase 1 -- software simulation. Nothing here is hardware-specific.
+#
+# CPU-only torch. ultralytics depends on torch/torchvision but does not pin a
+# build, so a plain `pip install ultralytics` resolves the default PyPI wheel,
+# which is the CUDA build -- 500+ MB of NVIDIA libraries a CPU host will never
+# use. Free-tier hosts (Streamlit Community Cloud's ~1GB, HF Spaces CPU
+# basic) do not have room for that on top of everything else. This index
+# line makes pip resolve the small CPU wheels for torch/torchvision instead;
+# ultralytics itself still comes from PyPI as normal.
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch>=2.2
+torchvision>=0.17
+
 ultralytics>=8.3          # YOLO detection and tracking
-opencv-python>=4.10       # camera capture and the live control-room window
+opencv-python-headless>=4.10   # no GUI/display on a server; smaller, avoids
+                                # some libGL edge cases packages.txt covers anyway
 numpy>=1.26
 PyYAML>=6.0               # config/config.yaml
-streamlit>=1.30           # the reporting view (dashboard/app.py)
+streamlit>=1.49           # .streamlit/config.toml uses [theme.light]/[theme.dark]
+                           # and other keys that only exist from 1.49 on -- an
+                           # older resolved version silently drops the whole
+                           # theme instead of erroring, so this floor matters.
 
 # --- one deliberate exception -------------------------------------------
-# ultralytics declares `ultralytics-platform` as a hard dependency, and that
+# ultralytics declares `ultralytics-platform` as a dependency, and that
 # package pins httpx>=0.28. It provides Ultralytics' CLOUD features only --
 # it is imported lazily, and only when you touch Platform / AsyncPlatform /
 # APIError / APIConnectionError. This project never does: local inference
 # uses `from ultralytics import YOLO` and nothing else.
 #
-# It is left uninstalled here because httpx>=0.28 conflicts with an unrelated
-# supabase install in the same interpreter. `pip check` will therefore report:
-#
-#     ultralytics 8.4.140 requires ultralytics-platform, which is not installed
-#
-# That warning is expected and harmless. Note that `pip install -U ultralytics`
-# will pull it back in and upgrade httpx again. If that matters, put this
-# project in its own virtual environment instead.
-#
-# ultralytics-platform     # intentionally NOT installed -- see above
+# Verified in a clean install (2026-09-14, ultralytics 8.4.150): pip now
+# resolves and installs ultralytics-platform + httpx 0.28.1 without
+# complaint. The conflict described in earlier notes was specific to an
+# environment with an older ultralytics pin alongside a conflicting httpx
+# requirement elsewhere (e.g. supabase in the same interpreter) -- it is not
+# a problem in a dedicated venv/Space, which this project should run in.
 
-# Pulled in by ultralytics; a CPU-only laptop is fine:
+# Pulled in by ultralytics; CPU-only per the index line above:
 #   torch, torchvision
 # sqlite3 is part of the standard library.
 
