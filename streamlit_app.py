@@ -183,11 +183,28 @@ left, right = st.columns([1, 1])
 
 with left:
     st.subheader("An object")
-    uploaded = st.file_uploader("Photograph of a single object",
-                                type=["jpg", "jpeg", "png"],
-                                label_visibility="collapsed")
+
+    # Three ways in, and the camera is the interesting one: it is THIS
+    # machine's webcam, not the server's. A cloud host has no camera, so the
+    # browser grabs the frame and posts it up -- which is why the hosted demo
+    # can be pointed at a real object even though `main.py`'s continuous loop
+    # cannot be hosted at all. One frame per shutter press, so it costs
+    # exactly what an upload costs and cannot swamp the server.
+    how = st.radio("Where from", ["Upload a photo", "Use my camera"],
+                   horizontal=True, label_visibility="collapsed")
+
+    uploaded = None
+    shot = None
+    if how == "Use my camera":
+        shot = st.camera_input("Point the camera at a single object",
+                               label_visibility="collapsed")
+    else:
+        uploaded = st.file_uploader("Photograph of a single object",
+                                    type=["jpg", "jpeg", "png"],
+                                    label_visibility="collapsed")
+
     picked = None
-    if samples:
+    if samples and how == "Upload a photo":
         names = ["—"] + [p.stem.replace("_", " ") for p in samples]
         choice = st.selectbox("or try a sample", names)
         if choice != "—":
@@ -201,16 +218,21 @@ with left:
         "system say so rather than guess."
     )
 
-source = uploaded if uploaded is not None else picked
+source = shot if shot is not None else (uploaded if uploaded is not None else picked)
 
 if source is None:
-    st.info("Upload an image to run the agents.")
+    st.info("Take a photo with your camera, or upload one, to run the agents."
+            if how == "Use my camera"
+            else "Upload an image to run the agents.")
     st.stop()
 
 import cv2
 
-if uploaded is not None:
-    data = np.frombuffer(uploaded.getvalue(), np.uint8)
+if shot is not None or uploaded is not None:
+    # A camera shot and an upload arrive identically: bytes in memory, never
+    # a path on disk, so the same decode handles both.
+    raw = shot if shot is not None else uploaded
+    data = np.frombuffer(raw.getvalue(), np.uint8)
     image = cv2.imdecode(data, cv2.IMREAD_COLOR)
 else:
     image = cv2.imread(str(picked))
