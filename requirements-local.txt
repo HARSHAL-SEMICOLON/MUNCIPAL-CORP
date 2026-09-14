@@ -1,0 +1,50 @@
+# =============================================================================
+#  LOCAL DEVELOPMENT -- use this one on your own machine.
+# =============================================================================
+#  `requirements.txt` is the DEPLOYMENT list and it installs
+#  opencv-python-headless, which is correct for a server: a cloud host has no
+#  display, and the headless build is smaller and avoids libGL entirely.
+#
+#  But headless OpenCV has no GUI functions compiled in at all, and `main.py`
+#  opens a real window:
+#
+#      cv2.namedWindow(...) / cv2.imshow(...) / cv2.waitKey(...)
+#
+#  With the headless build those raise
+#      cv2.error: The function is not implemented.
+#  which reads like a broken install rather than the wrong wheel.
+#
+#  So: this file is identical to requirements.txt except that it installs the
+#  FULL opencv-python. Never install both into the same environment -- they
+#  overwrite each other's `cv2` module and whichever landed last wins.
+#
+#      python -m venv .venv
+#      .venv\Scripts\activate          (Windows)
+#      pip install -r requirements-local.txt
+#      python main.py
+# =============================================================================
+
+# CPU-only torch. Locally you may well have a GPU, in which case you can drop
+# these three lines and let pip resolve the default CUDA build instead.
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch>=2.2
+torchvision>=0.17
+
+ultralytics>=8.3
+
+# Required for tracking: ultralytics' ByteTrack imports `lap` at
+# tracker-registration time and it is not a declared dependency. Without it
+# model.track() raises and every frame returns nothing.
+lap>=0.5.12
+
+# THE DIFFERENCE FROM requirements.txt -- the GUI build, so main.py can open
+# its control-room window.
+opencv-python>=4.10
+
+numpy>=1.26
+PyYAML>=6.0
+streamlit>=1.49
+
+# Only needed for the hosted live-camera page; harmless locally, and lets you
+# test that page before deploying it.
+streamlit-webrtc>=0.77
