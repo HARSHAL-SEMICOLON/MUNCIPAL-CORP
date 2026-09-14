@@ -47,19 +47,71 @@ echo  What would you like to run?
 echo.
 echo    1  Live desktop loop        - your webcam, the moving belt, full speed
 echo    2  Web app                  - the three-page Streamlit site, in a browser
-echo    3  Seed demo data           - fill the database so the report has history
-echo    4  Run the test suite       - all 253 checks, no camera needed
-echo    5  Quit
 echo.
-set /p choice="  Choose 1-5: "
+echo    --- getting your results chapter ---
+echo    3  Capture evaluation frames - camera opens, SPACE saves, Q done
+echo    4  Show what you have captured
+echo    5  Run the evaluation        - accuracy, wrong-bin rate, confusion matrix
+echo    6  Choose demo samples       - picks the frames the detector sees best
+echo.
+echo    7  Seed demo data           - fill the database so the report has history
+echo    8  Run the test suite       - all 253 checks, no camera needed
+echo    9  Quit
+echo.
+set /p choice="  Choose 1-9: "
 
 if "%choice%"=="1" goto :live
 if "%choice%"=="2" goto :web
-if "%choice%"=="3" goto :seed
-if "%choice%"=="4" goto :tests
-if "%choice%"=="5" exit /b 0
-echo  Please choose a number from 1 to 5.
+if "%choice%"=="3" goto :capture
+if "%choice%"=="4" goto :inventory
+if "%choice%"=="5" goto :evaluate
+if "%choice%"=="6" goto :samples
+if "%choice%"=="7" goto :seed
+if "%choice%"=="8" goto :tests
+if "%choice%"=="9" exit /b 0
+echo  Please choose a number from 1 to 9.
 goto :menu
+
+:capture
+echo.
+echo  Which class are you about to photograph?
+echo.
+echo  Good ones for the current COCO model: bottle, banana, apple, orange,
+echo  book, cup, bowl, cell phone, laptop, scissors, wine glass.
+echo.
+echo  Battery, aluminium can, cardboard and plastic bag are NOT classes this
+echo  model knows. Capture them anyway if you like - a miss is a real result
+echo  and the evaluation counts it - but expect no box to appear.
+echo.
+set /p lbl="  Class name (e.g. bottle): "
+if "%lbl%"=="" goto :menu
+echo.
+echo  SPACE saves a frame.  Q finishes.
+echo  Aim for 20+ frames: vary the angle, the distance and the lighting.
+echo.
+".venv\Scripts\python.exe" -m evaluation.capture --label "%lbl%"
+goto :done
+
+:inventory
+echo.
+".venv\Scripts\python.exe" -m evaluation.capture --label x --list
+goto :done
+
+:evaluate
+echo.
+echo  Running the real detector and the real agents over every captured frame.
+echo.
+".venv\Scripts\python.exe" -m evaluation.evaluate
+echo.
+echo  Results written to evaluation\results\evaluation.json
+echo  Put the headline numbers in your README - that table is the thing the
+echo  project has been missing.
+goto :done
+
+:samples
+echo.
+".venv\Scripts\python.exe" -m tools.make_samples
+goto :done
 
 :live
 echo.
