@@ -12,6 +12,18 @@ torch>=2.2
 torchvision>=0.17
 
 ultralytics>=8.3          # YOLO detection and tracking
+
+# REQUIRED FOR TRACKING -- do not remove.
+# vision/detector.py calls model.track(), and ultralytics' ByteTrack imports
+# `lap` (the linear-assignment solver) at tracker-registration time. It is NOT
+# a declared ultralytics dependency: locally, ultralytics silently pip-installs
+# it on first use, which is why the live loop works on a dev machine. On a
+# deployed host that runtime install does not take effect in the running
+# process, so model.track() raises ModuleNotFoundError, Detector.detect()
+# catches it and returns [], and EVERY upload reports "nothing detected" --
+# a dependency failure wearing the costume of an empty frame.
+lap>=0.5.12
+
 opencv-python-headless>=4.10   # no GUI/display on a server; smaller, avoids
                                 # some libGL edge cases packages.txt covers anyway
 numpy>=1.26

@@ -62,6 +62,17 @@ class Detector:
                 conf=self.min_confidence,
                 verbose=False,
             )
+        except ImportError:
+            # NOT a bad frame. `model.track()` pulls in the tracker stack, and
+            # ultralytics' ByteTrack imports `lap` at registration time. If it
+            # is missing, EVERY frame raises -- and swallowing that below made
+            # a broken deployment indistinguishable from an empty belt: the
+            # demo reported "nothing detected" for every photograph ever
+            # uploaded, including objects the model scores at 87%.
+            #
+            # An infrastructure failure must be loud. A frame glitch may be
+            # quiet. They are not the same event and must not share a handler.
+            raise
         except Exception:
             # A single bad frame must not end the run; the belt keeps moving
             # and the next frame gets another chance.
