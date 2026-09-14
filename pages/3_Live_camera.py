@@ -59,10 +59,49 @@ from simulation.renderer import Renderer  # noqa: E402
 from simulation.world import World  # noqa: E402
 from vision.detector import ModelUnavailable  # noqa: E402
 
-# Google's public STUN server, which is what lets the browser and the server
-# find each other through NAT. Without it the handshake never completes on
-# most home networks.
-RTC_CONFIG = {"iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]}
+STUN_ONLY = [{"urls": ["stun:stun.l.google.com:19302"]}]
+
+
+def ice_servers() -> tuple[list[dict], bool]:
+    """ICE servers for the connection, and whether a TURN relay is among them.
+
+    THE THING THAT DECIDES WHETHER THIS PAGE WORKS AT ALL.
+
+    STUN only tells each side what its own public address is; the two then
+    talk directly. That works on a home network and fails on Streamlit
+    Community Cloud, because the app sits behind a proxy that will not pass
+    the direct media path -- the handshake completes, no frames ever arrive,
+    and the viewer sees a black rectangle with no error, which is the worst
+    failure mode a page can have.
+
+    A TURN server fixes it by relaying the media instead of merely describing
+    the route. It costs bandwidth, so it is never free-and-anonymous for long;
+    the credentials belong in Streamlit secrets rather than in this file:
+
+        # .streamlit/secrets.toml  (or the Secrets box on Streamlit Cloud)
+        [turn]
+        urls = ["turn:standard.relay.metered.ca:80"]
+        username = "..."
+        credential = "..."
+
+    Free tiers that work: metered.ca's Open Relay (20 GB/month) and Twilio's
+    Network Traversal Service (trial credit). Without them this page falls
+    back to STUN and says so on screen rather than pretending.
+    """
+    try:
+        turn = st.secrets.get("turn")
+    except Exception:            # no secrets file at all, which is normal
+        turn = None
+
+    if turn and turn.get("urls"):
+        server = {"urls": list(turn["urls"])}
+        if turn.get("username"):
+            server["username"] = turn["username"]
+        if turn.get("credential"):
+            server["credential"] = turn["credential"]
+        return STUN_ONLY + [server], True
+
+    return STUN_ONLY, False
 
 
 class Plant:
@@ -82,6 +121,9 @@ class Plant:
         self.renderer = Renderer(self.cfg)
         self.frame_id = 0
         self.last_tick = time.monotonic()
+        # Boxes from the most recent frame that was actually run through the
+        # detector, redrawn on the frames in between (see `process_every`).
+        self.last_detections: list = []
         # Straight from config, so restoring it after the toggle below cannot
         # drift from what the live system actually runs.
         self.intrusion_classes = set(self.pipe.safety.intrusion_classes)
@@ -115,19 +157,26 @@ plant = get_plant()
 if plant is None:
     st.stop()
 
-controls = st.columns([1, 1, 1.3])
+controls = st.columns([1, 1, 1, 1.3])
 with controls[0]:
-    view = st.radio("View", ["Control room", "Camera only"],
-                    help="Control room is the full desktop view: camera, "
-                         "decision readout, belt and bins. Camera only is "
-                         "just the annotated video, which is easier to read "
-                         "on a phone.")
+    view = st.radio("View", ["Camera only", "Control room"],
+                    help="Camera only is the annotated video and is much "
+                         "lighter — start here. Control room adds the full "
+                         "desktop layout (readout, belt, bins) and costs a "
+                         "1024x720 render on every frame.")
 with controls[1]:
     size = st.select_slider(
-        "Detection size", [320, 416, 640], value=416,
+        "Detection size", [320, 416, 640], value=320,
         help="Smaller is faster and less accurate. 640 is what the live "
              "system uses; 320 keeps a slow connection watchable.")
 with controls[2]:
+    process_every = st.select_slider(
+        "Detect every N frames", [1, 2, 3, 4], value=2,
+        help="Inference is the expensive step, not the video. Running it on "
+             "every second or third frame roughly doubles or triples the "
+             "frame rate; the boxes from the last detected frame are redrawn "
+             "in between, so motion still looks continuous.")
+with controls[3]:
     intrusion_live = st.checkbox(
         "Person in frame stops the belt (rung R2)", value=False,
         help="OFF by default for an obvious reason: you are sitting in front "
@@ -174,7 +223,7 @@ def annotate_camera(img, detections, pipe) -> np.ndarray:
     return out
 
 
-def make_callback(plant: Plant, control_room: bool):
+def make_callback(plant: Plant, control_room: bool, process_every: int):
     """Build the per-frame callback. Runs on WebRTC's own thread.
 
     It touches nothing from Streamlit -- only plain objects captured here --
@@ -190,8 +239,15 @@ def make_callback(plant: Plant, control_room: bool):
         plant.last_tick = now                   # teleport items down the belt
 
         try:
-            detections = plant.pipe.process_frame(img, plant.frame_id,
-                                                  img.shape[1])
+            # Inference is the whole cost. The belt still advances by real
+            # elapsed time on every frame, so skipping detection changes how
+            # often objects are SEEN, never how fast they travel.
+            if plant.frame_id % process_every == 0:
+                detections = plant.pipe.process_frame(img, plant.frame_id,
+                                                      img.shape[1])
+                plant.last_detections = detections
+            else:
+                detections = plant.last_detections
             plant.world.update(dt)
             if control_room:
                 out = plant.renderer.draw(img, detections, plant.pipe,
@@ -216,11 +272,23 @@ def make_callback(plant: Plant, control_room: bool):
     return callback
 
 
+servers, has_turn = ice_servers()
+
+if not has_turn:
+    st.warning(
+        "**No TURN server configured — on Streamlit Community Cloud the video "
+        "will very likely stay black.** The app runs behind a proxy that "
+        "blocks the direct browser↔server media path, so a relay is required. "
+        "This is a hosting limitation, not a fault in the pipeline: the same "
+        "code runs fine locally. See *Getting the video to connect* below."
+    )
+
 ctx = webrtc_streamer(
     key="waste-line",
     mode=WebRtcMode.SENDRECV,
-    rtc_configuration=RTC_CONFIG,
-    video_frame_callback=make_callback(plant, view == "Control room"),
+    rtc_configuration={"iceServers": servers},
+    video_frame_callback=make_callback(plant, view == "Control room",
+                                       int(process_every)),
     media_stream_constraints={
         # 640x480 keeps the round trip affordable; the detector downscales to
         # `imgsz` anyway, so a larger capture buys nothing but latency.
@@ -235,6 +303,33 @@ if not ctx.state.playing:
         "Press **START** above and allow camera access. Then hold an object "
         "up and move it slowly across the frame, left to right — it is "
         "committed as it crosses the decision line."
+    )
+
+with st.expander("Getting the video to connect (read this if it stays black)"):
+    st.markdown(
+        "A black rectangle after pressing START almost always means the media "
+        "never arrived, rather than that detection failed.\n\n"
+        "**Why.** WebRTC first tries to send video straight from your browser "
+        "to the server. A STUN server only helps the two sides describe where "
+        "they are; it cannot carry anything. Streamlit Community Cloud puts "
+        "the app behind a proxy that refuses that direct path, so the "
+        "connection negotiates successfully and then no frames flow.\n\n"
+        "**The fix is a TURN server**, which relays the media instead. Free "
+        "tiers exist — metered.ca's Open Relay gives 20 GB a month, Twilio's "
+        "Network Traversal Service has trial credit. Sign up, then add the "
+        "credentials to **Manage app → Settings → Secrets** on Streamlit "
+        "Cloud:\n\n"
+        "```toml\n"
+        "[turn]\n"
+        'urls = ["turn:standard.relay.metered.ca:80"]\n'
+        'username = "your-username"\n'
+        'credential = "your-credential"\n'
+        "```\n\n"
+        "The page picks them up on the next restart, and this warning "
+        "disappears.\n\n"
+        "**If you would rather not run a relay at all:** `python main.py` on "
+        "your own machine is the same loop at full camera frame rate, with "
+        "nothing to configure. The other two pages need no TURN server."
     )
 
 st.caption(
