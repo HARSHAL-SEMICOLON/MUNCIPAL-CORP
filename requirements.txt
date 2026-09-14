@@ -24,6 +24,14 @@ ultralytics>=8.3          # YOLO detection and tracking
 # a dependency failure wearing the costume of an empty frame.
 lap>=0.5.12
 
+# Live camera streaming (pages/3_Live_camera.py). Carries the browser's
+# camera to the server frame by frame, which is how the real loop -- tracking,
+# decision line, agents, belt -- runs on a host that has no camera of its own.
+# It pulls aiortc and av with it, so it is the heaviest thing in this file
+# after torch: if a free-tier host runs out of memory, this is the line to
+# drop, and the app keeps working without that one page.
+streamlit-webrtc>=0.77
+
 opencv-python-headless>=4.10   # no GUI/display on a server; smaller, avoids
                                 # some libGL edge cases packages.txt covers anyway
 numpy>=1.26
